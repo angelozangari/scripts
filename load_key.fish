@@ -17,42 +17,45 @@ while true
 	set -l RAW_KEYS (grep -o '^[^=]*' .env 2>/dev/null)
 
 	set -l CURRENT_KEYS
-	if test (count $RAW_KEYS) -gt 0
-		for k in $RAW_KEYS
-			set norm (string lower (string trim $k) | string replace '_key' '')
-			set CURRENT_KEYS $CURRENT_KEYS $norm
-		end
+	for k in $RAW_KEYS
+		set norm (string lower (string trim $k) | string replace '_key' '')
+		set CURRENT_KEYS $CURRENT_KEYS $norm
 	end
 	set CURRENT_KEYS (printf "%s\n" $CURRENT_KEYS | sort)
 
-	## create set 3 = set 1 - set 2 of available but not yet added
+	## filter and sort remaining keys directly
 	set -l REMAINING_KEYS
-	for k in $AVAILABLE_KEYS
+	for k in (printf "%s\n" $AVAILABLE_KEYS | sort)
 		if not contains $k $CURRENT_KEYS
 			set REMAINING_KEYS $REMAINING_KEYS $k
 		end
 	end
-	set -l REMAINING_KEYS (printf "%s\n" $REMAINING_KEYS | sort)
 
-	## print to stdout
-	### num. set 3
+	## exit if nothing left
+	if test (count $REMAINING_KEYS) -eq 0
+		echo "all api keys have already been added"
+		break
+	end
+
+	## print numbered list
 	for i in (seq (count $REMAINING_KEYS))
 		echo "$i. $REMAINING_KEYS[$i]"
 	end
-	### set 2
+
+	## show already installed
 	printf "\nAlready in .env:\n"
 	for k in $RAW_KEYS
 		echo $k
 	end
 
-	## read number (later range, list and *)
+	## prompt user
 	read -P "Enter key number to add (or q to quit):" choice
 
 	if test "$choice" = "q"
 		break
 	end
 
-	## add specified keys to env
+	## add selected key
 	set key $REMAINING_KEYS[$choice]
 	cat "$API_DIR/$key.env" >> .env
 end
